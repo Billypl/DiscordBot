@@ -38,6 +38,8 @@ namespace TestBot_DSharp.Commands
         {
             var interactivity = ctx.Client.GetInteractivity();
             var message = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel);
+            if (message.TimedOut)
+                return;
             await ctx.Channel.SendMessageAsync(message.Result.Content);
         }
 

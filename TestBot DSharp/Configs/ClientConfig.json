@@ -1,0 +1,7 @@
+﻿{
+  "Token": "OTY0Nzk5MjIyOTY2ODEyNzUz.Ylp5Sw.fDwplQtd5ORwVVEHdb7TMJ4gXQ0",
+  "TokenType": "Bot",
+  "AutoReconnect": true,
+  "MinimumLogLevel": "Debug",
+  "Intents": "All" 
+}
