@@ -148,6 +148,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Commands\Debug.cs" />
     <Compile Include="Commands\RoleCommands.cs" />
     <Compile Include="Commands\AnswerCommands.cs" />
     <Compile Include="Scripts\Bot.cs" />

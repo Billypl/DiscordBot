@@ -41,6 +41,7 @@ namespace TestBot_DSharp.Commands
             await ctx.Channel.SendMessageAsync(message.Result.Content);
         }
 
+
         [Command("poll")]
         [Description("Creates poll, with specified duration and title")]
         public async Task Poll(CommandContext ctx, 
@@ -62,6 +63,7 @@ namespace TestBot_DSharp.Commands
             
             await pollMessage.DeleteAsync();
         }
+
         private DiscordEmbedBuilder createPollEmbed(string pollTitle, DiscordMember author, TimeSpan duration)
         {
             var pollEmbed = new DiscordEmbedBuilder

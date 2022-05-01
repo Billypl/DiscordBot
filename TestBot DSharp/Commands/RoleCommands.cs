@@ -8,6 +8,7 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
+using DSharpPlus.Exceptions;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 
@@ -112,58 +113,53 @@ namespace TestBot_DSharp.Commands
             await createdMessage.CreateReactionAsync(thumbsDown);
         }
 
-        [Command("debug_printRoles")]
-        public async Task debug_printRoles(CommandContext ctx)
-        {
-            foreach(var roleName in ctx.Guild.Roles)
-                Console.WriteLine(roleName.Value);
-
-            await ctx.Channel.SendMessageAsync("Roles printed to the console");
-        }
-
-
         [Command("newMember")]
         [Description("Sets up workflow for new member")]
         public async Task newMember(CommandContext ctx, ulong userID)
         {
-            await newMemberSetup(ctx.Guild, userID);
+            if(hasNeededPermissions(ctx.Member, ctx.Guild))
+                await newMemberSetup(ctx.Guild, userID);
         }
+
         static public async Task newMemberSetup(DiscordGuild guild, ulong userID)
         {
             DiscordMember newMember = await guild.GetMemberAsync(userID);
+            await guild.RequestMembersAsync(); // populates guild.Members
 
-            string roleName = formatRoleName(guild.Roles, newMember.Username);
-            DiscordRole role = await guild.CreateRoleAsync(roleName);
-            await newMember.GrantRoleAsync(role);
-            await newMember.ModifyAsync(x => x.Nickname = roleName);
+            string nickname = formatNewMemberName(guild.Members, newMember.Username);
+            await newMember.ModifyAsync(x => x.Nickname = nickname);
 
-            var newCategory = await guild.CreateChannelCategoryAsync(roleName);
-            await guild.CreateTextChannelAsync($"c-sharp-progress-{newMember.Username}", newCategory, null, createPermissions(role, guild));
-            await guild.CreateTextChannelAsync($"dot-net-progress-{newMember.Username}", newCategory, null, createPermissions(role, guild));
+            var newCategory = await guild.CreateChannelCategoryAsync(nickname);
+            await guild.CreateTextChannelAsync($"c-sharp-progress-{newMember.Username}", newCategory, null, createPermissions(newMember, guild));
+            await guild.CreateTextChannelAsync($"dot-net-progress-{newMember.Username}", newCategory, null, createPermissions(newMember, guild));
         }
-        static private int getHighestRoleNumber(IReadOnlyDictionary<ulong, DiscordRole> roles)
+        static private int getHighestMemberNumber(IReadOnlyDictionary<ulong, DiscordMember> members)
         {
-            var numbers = new List<int>();
-            foreach (var roleName in roles.Values)
-                if (roleName.Name.StartsWith("#"))
-                    numbers.Add(Convert.ToInt32(roleName.Name.Substring(1, 2)));
-            numbers.Sort();
-            return numbers.Last();
+            var memberNumbers = new List<int>();
+            foreach (var member in members.Values)
+                if (member.DisplayName.StartsWith("#"))
+                    memberNumbers.Add(Convert.ToInt32(member.DisplayName.Substring(1, 2)));
+            memberNumbers.Sort();
+            return memberNumbers.Last();
         }
-        static private string formatRoleName(IReadOnlyDictionary<ulong, DiscordRole> roles, string memberName)
+        static private string formatNewMemberName(IReadOnlyDictionary<ulong, DiscordMember> members, string memberName)
         {
-            int number = getHighestRoleNumber(roles) + 1;
+            int number = getHighestMemberNumber(members) + 1;
             string formatedNumber = (number > 9) ? number.ToString() : ("0" + number.ToString());
-            string roleName = $"#{formatedNumber}-{memberName}";
-            return roleName;
+            string nickname = $"#{formatedNumber}-{memberName}";
+            return nickname;
         }
-        static private List<DiscordOverwriteBuilder> createPermissions(DiscordRole roleWithSpecialPermissions, DiscordGuild guild)
+        static private List<DiscordOverwriteBuilder> createPermissions(DiscordMember memberWithSpecialPermissions, DiscordGuild guild)
         {
             DiscordRole everyone = guild.GetRole((ulong)getRoleID(guild, "@everyone"));
-            var everyonePermissions = new DiscordOverwriteBuilder(everyone) {
-                Denied = Permissions.ReadMessageHistory | Permissions.SendMessages };
-            var specialPermissions = new DiscordOverwriteBuilder(roleWithSpecialPermissions) {
-                Allowed = Permissions.ReadMessageHistory | Permissions.SendMessages };
+            var everyonePermissions = new DiscordOverwriteBuilder(everyone)
+            {
+                Denied = Permissions.ReadMessageHistory | Permissions.SendMessages
+            };
+            var specialPermissions = new DiscordOverwriteBuilder(memberWithSpecialPermissions)
+            {
+                Allowed = Permissions.ReadMessageHistory | Permissions.SendMessages
+            };
             return new List<DiscordOverwriteBuilder>() { everyonePermissions, specialPermissions };
         }
     }
