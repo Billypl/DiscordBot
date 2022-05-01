@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
@@ -14,8 +15,8 @@ namespace TestBot_DSharp.Commands
 {
     public class RoleCommands : BaseCommandModule
     {
-        private readonly DiscordEmoji thumbsUp = DiscordEmoji.FromName(Bot.Client, ":+1:");
-        private readonly DiscordEmoji thumbsDown = DiscordEmoji.FromName(Bot.Client, ":-1:");
+        static private readonly DiscordEmoji thumbsUp = DiscordEmoji.FromName(Bot.Client, ":+1:");
+        static private readonly DiscordEmoji thumbsDown = DiscordEmoji.FromName(Bot.Client, ":-1:");
 
         // useful for giving users roles according to their preferences
         // i.e. give c# or .NET role to view only those categories
@@ -45,11 +46,11 @@ namespace TestBot_DSharp.Commands
             await createdMessage.DeleteAsync();
         }
 
-        private bool isValidRole(long roleID)
+        static private bool isValidRole(long roleID)
         {
             return roleID > 0;
         }
-        private long getRoleID(DiscordGuild guild, string roleName)
+        static private long getRoleID(DiscordGuild guild, string roleName)
         {
             var roles = guild.Roles.Values;
             foreach (var role in roles)
@@ -58,7 +59,7 @@ namespace TestBot_DSharp.Commands
 
             return -1;
         }
-        private bool hasNeededPermissions(DiscordMember member, DiscordGuild guild)
+        static private bool hasNeededPermissions(DiscordMember member, DiscordGuild guild)
         {
             var Bartek = guild.GetRole((ulong)getRoleID(guild, "#01-Bartek"));
             var Milosz = guild.GetRole((ulong)getRoleID(guild, "#02-Miłosz"));
@@ -69,7 +70,7 @@ namespace TestBot_DSharp.Commands
 
             return false;
         }
-        private DiscordEmbedBuilder createMemberEmbed(CommandContext ctx, string roleName)
+        static private DiscordEmbedBuilder createMemberEmbed(CommandContext ctx, string roleName)
         {
             var avatar = new DiscordEmbedBuilder.EmbedThumbnail { Url = ctx.Member.AvatarUrl };
             var embed = new DiscordEmbedBuilder
@@ -80,7 +81,7 @@ namespace TestBot_DSharp.Commands
             };
             return embed;
         }
-        private async Task<InteractivityResult<MessageReactionAddEventArgs>> collectReaction(CommandContext ctx)
+        static private async Task<InteractivityResult<MessageReactionAddEventArgs>> collectReaction(CommandContext ctx)
         {
             var interactivity = ctx.Client.GetInteractivity();
             var reactionResult = await interactivity.WaitForReactionAsync(x =>
@@ -90,7 +91,7 @@ namespace TestBot_DSharp.Commands
 
             return reactionResult;
         }
-        private async Task grantOrRevokeRole(CommandContext ctx, long roleID, InteractivityResult<MessageReactionAddEventArgs> reactionResult)
+        static private async Task grantOrRevokeRole(CommandContext ctx, long roleID, InteractivityResult<MessageReactionAddEventArgs> reactionResult)
         {
             DiscordRole role = ctx.Guild.GetRole((ulong)roleID);
 
@@ -105,12 +106,66 @@ namespace TestBot_DSharp.Commands
                 await ctx.Message.RespondAsync("Role revoked!");
             }
         }
-        private async Task createReactions(DiscordMessage createdMessage)
+        static private async Task createReactions(DiscordMessage createdMessage)
         {
             await createdMessage.CreateReactionAsync(thumbsUp);
             await createdMessage.CreateReactionAsync(thumbsDown);
         }
 
+        [Command("debug_printRoles")]
+        public async Task debug_printRoles(CommandContext ctx)
+        {
+            foreach(var roleName in ctx.Guild.Roles)
+                Console.WriteLine(roleName.Value);
+
+            await ctx.Channel.SendMessageAsync("Roles printed to the console");
+        }
+
+
+        [Command("newMember")]
+        [Description("Sets up workflow for new member")]
+        public async Task newMember(CommandContext ctx, ulong userID)
+        {
+            await newMemberSetup(ctx.Guild, userID);
+        }
+        static public async Task newMemberSetup(DiscordGuild guild, ulong userID)
+        {
+            DiscordMember newMember = await guild.GetMemberAsync(userID);
+
+            string roleName = formatRoleName(guild.Roles, newMember.Username);
+            DiscordRole role = await guild.CreateRoleAsync(roleName);
+            await newMember.GrantRoleAsync(role);
+            await newMember.ModifyAsync(x => x.Nickname = roleName);
+
+            var newCategory = await guild.CreateChannelCategoryAsync(roleName);
+            await guild.CreateTextChannelAsync($"c-sharp-progress-{newMember.Username}", newCategory, null, createPermissions(role, guild));
+            await guild.CreateTextChannelAsync($"dot-net-progress-{newMember.Username}", newCategory, null, createPermissions(role, guild));
+        }
+        static private int getHighestRoleNumber(IReadOnlyDictionary<ulong, DiscordRole> roles)
+        {
+            var numbers = new List<int>();
+            foreach (var roleName in roles.Values)
+                if (roleName.Name.StartsWith("#"))
+                    numbers.Add(Convert.ToInt32(roleName.Name.Substring(1, 2)));
+            numbers.Sort();
+            return numbers.Last();
+        }
+        static private string formatRoleName(IReadOnlyDictionary<ulong, DiscordRole> roles, string memberName)
+        {
+            int number = getHighestRoleNumber(roles) + 1;
+            string formatedNumber = (number > 9) ? number.ToString() : ("0" + number.ToString());
+            string roleName = $"#{formatedNumber}-{memberName}";
+            return roleName;
+        }
+        static private List<DiscordOverwriteBuilder> createPermissions(DiscordRole roleWithSpecialPermissions, DiscordGuild guild)
+        {
+            DiscordRole everyone = guild.GetRole((ulong)getRoleID(guild, "@everyone"));
+            var everyonePermissions = new DiscordOverwriteBuilder(everyone) {
+                Denied = Permissions.ReadMessageHistory | Permissions.SendMessages };
+            var specialPermissions = new DiscordOverwriteBuilder(roleWithSpecialPermissions) {
+                Allowed = Permissions.ReadMessageHistory | Permissions.SendMessages };
+            return new List<DiscordOverwriteBuilder>() { everyonePermissions, specialPermissions };
+        }
     }
 }
 
