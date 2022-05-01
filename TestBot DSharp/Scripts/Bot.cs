@@ -15,9 +15,9 @@ namespace TestBot_DSharp
 {
     public class Bot
     {
-        public DiscordClient Client { get; private set; }
-        public InteractivityExtension Interactivity { get; private set; }
-        public CommandsNextExtension Commands { get; private set; }
+        public static DiscordClient Client { get; private set; }
+        public static InteractivityExtension Interactivity { get; private set; }
+        public static CommandsNextExtension Commands { get; private set; }
 
         public async Task RunAsync()
         {
