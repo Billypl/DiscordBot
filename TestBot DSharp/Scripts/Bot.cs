@@ -19,30 +19,33 @@ namespace TestBot_DSharp
         public static InteractivityExtension Interactivity { get; private set; }
         public static CommandsNextExtension Commands { get; private set; }
 
+
+        private readonly DiscordConfiguration clientConfig = new DiscordConfiguration
+        {
+            Token = "secret_bot_token",
+            TokenType = TokenType.Bot,
+            AutoReconnect = true,
+            MinimumLogLevel = LogLevel.Debug
+        };
+
+        private readonly CommandsNextConfiguration commandsConfig = new CommandsNextConfiguration
+        {
+            StringPrefixes = new string[] { "!zm " },
+            EnableMentionPrefix = true,
+            EnableDms = false
+        };
+
+        private readonly InteractivityConfiguration interactivityConfig = new InteractivityConfiguration
+        {
+            Timeout = TimeSpan.FromMinutes(5)
+        };
+
         public async Task RunAsync()
         {
-            var clientConfig = new DiscordConfiguration
-            {
-                Token = "secret_bot_token",
-                TokenType = TokenType.Bot,
-                AutoReconnect = true,
-                MinimumLogLevel = LogLevel.Debug
-            };
-            var commandsConfig = new CommandsNextConfiguration
-            {
-                StringPrefixes = new string[] { "!zm " },
-                EnableMentionPrefix = true,
-                EnableDms = false
-            };
-            var interactivityConfig = new InteractivityConfiguration
-            {
-                Timeout = TimeSpan.FromMinutes(5)
-            };
-
             Client = new DiscordClient(clientConfig);
-            Client.Ready += OnClientReady;
             Commands = Client.UseCommandsNext(commandsConfig);
             Client.UseInteractivity(interactivityConfig);
+            Client.Ready += OnClientReady;
 
             Commands.RegisterCommands<Commands.AnswerCommands>();
             Commands.RegisterCommands<Commands.RoleCommands>();

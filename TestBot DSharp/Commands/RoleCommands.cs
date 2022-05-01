@@ -111,7 +111,6 @@ namespace TestBot_DSharp.Commands
             await createdMessage.CreateReactionAsync(thumbsDown);
         }
 
-       
     }
 }
 

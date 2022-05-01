@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using DSharpPlus.Interactivity.EventHandling;
 using DSharpPlus.Interactivity.Extensions;
 
 namespace TestBot_DSharp.Commands
@@ -46,7 +47,23 @@ namespace TestBot_DSharp.Commands
             [Description("Duration of poll, after number specify time unit (s/m/h/d)")] TimeSpan duration, 
             [Description("Title for your poll")] params string[] title)
         {
+            await ctx.Message.DeleteAsync();
+            
             string pollTitle = string.Join(" ", title);
+
+            DiscordMessage pollMessage = 
+                await ctx.Channel.SendMessageAsync(
+                    createPollEmbed(pollTitle, ctx.Member, duration));
+
+            List<DiscordEmoji> reactionEmojis = pollEmojis(ctx);
+            var result = await pollMessage.DoPollAsync(reactionEmojis, null, duration);
+            var resultEmbed = createResultEmbed(pollTitle, ctx.Member, result);
+            await ctx.Channel.SendMessageAsync(resultEmbed);
+            
+            await pollMessage.DeleteAsync();
+        }
+        private DiscordEmbedBuilder createPollEmbed(string pollTitle, DiscordMember author, TimeSpan duration)
+        {
             var pollEmbed = new DiscordEmbedBuilder
             {
                 Title = pollTitle,
@@ -54,27 +71,30 @@ namespace TestBot_DSharp.Commands
                     $"Date: {endDate(duration, "d")} \n " +
                     $"Hour: {endDate(duration, "HH:mm")}",
                 Color = DiscordColor.Cyan,
-                Author = new DiscordEmbedBuilder.EmbedAuthor { Name = ctx.Member.DisplayName }
+                Author = new DiscordEmbedBuilder.EmbedAuthor { Name = author.DisplayName },
+                Thumbnail = new DiscordEmbedBuilder.EmbedThumbnail { Url = author.AvatarUrl }
             };
-            var pollMessage = await ctx.Channel.SendMessageAsync(pollEmbed);
-
-            var reactionEmojis = new List<DiscordEmoji>
+            return pollEmbed;
+        }
+        private DiscordEmbedBuilder createResultEmbed(string pollTitle, DiscordMember author, ReadOnlyCollection<PollEmoji> result)
+        {
+            var resultEmbed = new DiscordEmbedBuilder
+            {
+                Title = $"Results of \"{pollTitle}\" poll",
+                Author = new DiscordEmbedBuilder.EmbedAuthor { Name = author.DisplayName },
+                Description = string.Join("\n", result.Select(x => $"{x.Emoji}: {x.Total}")),
+                Thumbnail = new DiscordEmbedBuilder.EmbedThumbnail { Url = author.AvatarUrl }
+            };
+            return resultEmbed;
+        }
+        private List<DiscordEmoji> pollEmojis(CommandContext ctx)
+        {
+            var emojis = new List<DiscordEmoji>
             {
                 DiscordEmoji.FromName(ctx.Client, ":white_check_mark:"),
                 DiscordEmoji.FromName(ctx.Client, ":x:")
             };
-            var result = await pollMessage.DoPollAsync(reactionEmojis, null, duration);
-
-            var resultEmbed = new DiscordEmbedBuilder
-            {
-                Title = $"Results of \"{pollTitle}\" poll",
-                Author = new DiscordEmbedBuilder.EmbedAuthor {Name = ctx.Member.DisplayName },
-                Description = string.Join("\n", result.Select(x => $"{x.Emoji}: {x.Total}"))
-            };
-            await ctx.Channel.SendMessageAsync(resultEmbed);
-            
-            await ctx.Message.DeleteAsync();
-            await pollMessage.DeleteAsync();
+            return emojis;
         }
         private string endDate(TimeSpan duration, string dateFormat)
         {
