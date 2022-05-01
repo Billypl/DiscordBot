@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,10 +36,49 @@ namespace TestBot_DSharp.Commands
         public async Task Response(CommandContext ctx)
         {
             var interactivity = ctx.Client.GetInteractivity();
-
             var message = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel);
-
             await ctx.Channel.SendMessageAsync(message.Result.Content);
+        }
+
+        [Command("poll")]
+        [Description("Creates poll, with specified duration and title")]
+        public async Task Poll(CommandContext ctx, 
+            [Description("Duration of poll, after number specify time unit (s/m/h/d)")] TimeSpan duration, 
+            [Description("Title for your poll")] params string[] title)
+        {
+            string pollTitle = string.Join(" ", title);
+            var pollEmbed = new DiscordEmbedBuilder
+            {
+                Title = pollTitle,
+                Description = $"Poll ends at: \n " +
+                    $"Date: {endDate(duration, "d")} \n " +
+                    $"Hour: {endDate(duration, "HH:mm")}",
+                Color = DiscordColor.Cyan,
+                Author = new DiscordEmbedBuilder.EmbedAuthor { Name = ctx.Member.DisplayName }
+            };
+            var pollMessage = await ctx.Channel.SendMessageAsync(pollEmbed);
+
+            var reactionEmojis = new List<DiscordEmoji>
+            {
+                DiscordEmoji.FromName(ctx.Client, ":white_check_mark:"),
+                DiscordEmoji.FromName(ctx.Client, ":x:")
+            };
+            var result = await pollMessage.DoPollAsync(reactionEmojis, null, duration);
+
+            var resultEmbed = new DiscordEmbedBuilder
+            {
+                Title = $"Results of \"{pollTitle}\" poll",
+                Author = new DiscordEmbedBuilder.EmbedAuthor {Name = ctx.Member.DisplayName },
+                Description = string.Join("\n", result.Select(x => $"{x.Emoji}: {x.Total}"))
+            };
+            await ctx.Channel.SendMessageAsync(resultEmbed);
+            
+            await ctx.Message.DeleteAsync();
+            await pollMessage.DeleteAsync();
+        }
+        private string endDate(TimeSpan duration, string dateFormat)
+        {
+            return (DateTime.Now + duration).ToString(dateFormat);
         }
 
     }
