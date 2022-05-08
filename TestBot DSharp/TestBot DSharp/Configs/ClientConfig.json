@@ -1,0 +1,7 @@
+﻿{
+  "Token": "secret_bot_token",
+  "TokenType": "Bot",
+  "AutoReconnect": true,
+  "MinimumLogLevel": "Debug",
+  "Intents": "All" 
+}
