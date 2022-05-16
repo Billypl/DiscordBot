@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using DSharpPlus.Exceptions;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 
@@ -154,7 +152,8 @@ namespace TestBot_DSharp.Commands
             DiscordRole everyone = guild.GetRole((ulong)getRoleID(guild, "@everyone"));
             var everyonePermissions = new DiscordOverwriteBuilder(everyone)
             {
-                Denied = Permissions.ReadMessageHistory | Permissions.SendMessages
+                Denied = Permissions.SendMessages,
+                Allowed = Permissions.AddReactions
             };
             var specialPermissions = new DiscordOverwriteBuilder(memberWithSpecialPermissions)
             {
